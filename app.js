@@ -19,32 +19,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const prevCardBtn = document.getElementById('prev-card-btn');
   const nextCardBtn = document.getElementById('next-card-btn');
 
-  // Player de Áudio Ambiente Global (Música da pasta /music)
+  // Player de Áudio Ambiente Global
   const globalAudio = document.getElementById('global-audio');
-  const globalAudioToggle = document.getElementById('global-audio-toggle');
-  const globalAudioIcon = document.getElementById('global-audio-icon');
   const audioStartBanner = document.getElementById('audio-start-banner');
 
   // Toast / Notificações
   const toastEl = document.getElementById('toast');
   const toastMessageEl = document.getElementById('toast-message');
 
-  // Modal de Personalização (Admin)
-  const customizerModal = document.getElementById('customizer-modal');
-  const openCustomizerBtn = document.getElementById('open-customizer-btn');
-  const closeCustomizerBtn = document.getElementById('close-customizer-btn');
-  const customizerForm = document.getElementById('customizer-form');
-  const customizerDaySelect = document.getElementById('customizer-day-select');
-  const customizerTitleInput = document.getElementById('customizer-title');
-  const customizerTextInput = document.getElementById('customizer-text');
-  const customizerImageInput = document.getElementById('customizer-image');
-  const customizerImageFile = document.getElementById('customizer-image-file');
-  const resetDefaultBtn = document.getElementById('reset-default-btn');
+  // PWA & Notificações Elements
+  const pwaModal = document.getElementById('pwa-install-modal');
+  const installBtn = document.getElementById('install-pwa-btn');
+  const closePwaBtn = document.getElementById('close-pwa-modal-btn');
+  const iosInstructions = document.getElementById('ios-install-instructions');
+  const androidBtnContainer = document.getElementById('android-install-btn-container');
+
+  const notifBanner = document.getElementById('notification-permission-banner');
+  const enableNotifBtn = document.getElementById('enable-notifications-btn');
 
   // Estado da Aplicação
   let calendarData = loadCalendarData();
   let currentOpenDayIndex = -1;
   let isGlobalAudioPlaying = false;
+  let deferredPrompt = null;
 
   // Lista de 27 fotos locais da pasta /img
   const LOCAL_PHOTOS = [
@@ -78,11 +75,139 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   // Inicialização
+  initServiceWorker();
   initBackgroundPhotoWall();
   initCanvasPetals();
   renderCalendar();
   setupEventListeners();
   initBackgroundMusic();
+  setupPWAandNotifications();
+
+  /**
+   * Registrar Service Worker
+   */
+  function initServiceWorker() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        console.log('Service Worker registrado!', reg);
+      }).catch((err) => {
+        console.log('Erro ao registrar Service Worker:', err);
+      });
+    }
+  }
+
+  /**
+   * Configuração de Instalação na Tela Inicial (PWA) e Notificações Diárias
+   */
+  function setupPWAandNotifications() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    // Se ainda não estiver instalado como App
+    if (!isStandalone && !localStorage.getItem('PWA_MODAL_CLOSED')) {
+      if (isIOS) {
+        setTimeout(() => {
+          if (pwaModal) {
+            pwaModal.classList.remove('hidden');
+            if (iosInstructions) iosInstructions.classList.remove('hidden');
+            if (androidBtnContainer) androidBtnContainer.classList.add('hidden');
+          }
+        }, 2000);
+      }
+    }
+
+    // Evento do Android / Chrome para Instalação PWA
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (pwaModal && !isStandalone && !localStorage.getItem('PWA_MODAL_CLOSED')) {
+        setTimeout(() => {
+          pwaModal.classList.remove('hidden');
+        }, 1500);
+      }
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log('Resultado PWA Install:', outcome);
+          deferredPrompt = null;
+          if (pwaModal) pwaModal.classList.add('hidden');
+        }
+      });
+    }
+
+    if (closePwaBtn) {
+      closePwaBtn.addEventListener('click', () => {
+        if (pwaModal) pwaModal.classList.add('hidden');
+        localStorage.setItem('PWA_MODAL_CLOSED', 'true');
+      });
+    }
+
+    // Verificar e solicitar Notificações Diárias
+    checkDailyNotifications();
+  }
+
+  /**
+   * Notificação Diária da Nova Memória
+   */
+  function checkDailyNotifications() {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'default') {
+      if (notifBanner && !localStorage.getItem('NOTIF_BANNER_CLOSED')) {
+        setTimeout(() => {
+          notifBanner.classList.remove('hidden');
+        }, 3500);
+      }
+    } else if (Notification.permission === 'granted') {
+      triggerDailyCheckNotification();
+    }
+
+    if (enableNotifBtn) {
+      enableNotifBtn.addEventListener('click', () => {
+        Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+            if (notifBanner) notifBanner.classList.add('hidden');
+            triggerDailyCheckNotification(true);
+          } else {
+            if (notifBanner) notifBanner.classList.add('hidden');
+          }
+          localStorage.setItem('NOTIF_BANNER_CLOSED', 'true');
+        });
+      });
+    }
+  }
+
+  function triggerDailyCheckNotification(isFirstTime = false) {
+    const todayStr = getTodayDate().toDateString();
+    const lastNotifiedDate = localStorage.getItem('LAST_NOTIFIED_DATE');
+
+    if (isFirstTime || lastNotifiedDate !== todayStr) {
+      localStorage.setItem('LAST_NOTIFIED_DATE', todayStr);
+      
+      const currentDiff = getDiffDays();
+      const currentCard = calendarData[currentDiff] || calendarData[0];
+      
+      const title = "Calendário do Nosso Amor ❤️";
+      const body = `Fábia, a sua nova memória de hoje (${currentCard.dateString}) está pronta! Clique para abrir ✨`;
+
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'TRIGGER_NOTIFICATION',
+          title: title,
+          body: body
+        });
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: 'https://cdn-icons-png.flaticon.com/512/2904/2904973.png'
+        });
+      }
+    }
+  }
 
   /**
    * Gera o Mural de Fotos de Fundo em Quadrinhos (Marquee em Loop Infinito)
@@ -93,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     wallContainer.innerHTML = '';
 
-    // Criar 4 fileiras com movimentos alternados e velocidades diferentes
     const rowsConfig = [
       { direction: 'animate-marquee-left', speed: 'animate-marquee-slow', offset: 0 },
       { direction: 'animate-marquee-right', speed: 'animate-marquee-fast', offset: 7 },
@@ -108,10 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const track = document.createElement('div');
       track.className = `${cfg.direction} ${cfg.speed} flex items-center`;
 
-      // Reordenar fotos a partir do offset
       const shuffled = [...LOCAL_PHOTOS.slice(cfg.offset), ...LOCAL_PHOTOS.slice(0, cfg.offset)];
-
-      // Duplicar a lista de fotos 2 vezes para garantir loop perfeito e contínuo
       const fullList = [...shuffled, ...shuffled];
 
       fullList.forEach((src) => {
@@ -130,7 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Tenta iniciar a música de fundo da pasta /music imediatamente ao abrir o site
-   * E escuta qualquer interatividade (clique/toque) caso o navegador exija permissão de áudio
    */
   function initBackgroundMusic() {
     if (!globalAudio) return;
@@ -138,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const playMusic = () => {
       globalAudio.play().then(() => {
         isGlobalAudioPlaying = true;
-        updateGlobalAudioIcon();
         if (audioStartBanner) {
           audioStartBanner.classList.add('hidden');
         }
@@ -150,10 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     };
 
-    // Tentar tocar no carregamento do site
     playMusic();
 
-    // Tocar ao primeiro toque ou clique na tela
     const enableAudioOnUserAction = () => {
       if (globalAudio.paused) {
         playMusic();
@@ -170,15 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Obtém a data atual em relação ao início do calendário.
-   */
   function getTodayDate() {
     const overrideDate = localStorage.getItem('LOVE_CALENDAR_OVERRIDE_DATE');
     if (overrideDate) {
       return new Date(overrideDate);
     }
-    return new Date(); // Data real
+    return new Date();
   }
 
   function getStartDate() {
@@ -186,9 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date(savedStart + 'T00:00:00');
   }
 
-  /**
-   * Carrega os dados do Calendário (LocalStorage ou Padrão)
-   */
   function loadCalendarData() {
     const saved = localStorage.getItem('LOVE_CALENDAR_CUSTOM_DATA');
     if (saved) {
@@ -201,23 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return window.LOVE_CALENDAR_DATA || [];
   }
 
-  /**
-   * Salva os dados customizados no LocalStorage
-   */
-  function saveCalendarData(data) {
-    localStorage.setItem('LOVE_CALENDAR_CUSTOM_DATA', JSON.stringify(data));
-    calendarData = data;
-    renderCalendar();
-  }
-
-  /**
-   * Calcula o índice de dias desbloqueados com base no dia atual
-   */
   function getDiffDays() {
     const today = getTodayDate();
     const start = getStartDate();
     
-    // Normalizar para ignorar horas/minutos
     const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     
@@ -226,9 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return diffDays >= 0 ? diffDays : 0;
   }
 
-  /**
-   * Renderiza a grade de 30 cards no DOM
-   */
   function renderCalendar() {
     const currentDiffDays = getDiffDays();
     let unlockedCount = 0;
@@ -246,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isUnlocked ? 'card-unlocked' : 'card-locked'
       } ${isToday ? 'card-today' : ''}`;
 
-      // Conteúdo do Card
       card.innerHTML = `
         <div>
           <div class="flex items-center justify-between mb-3">
@@ -288,7 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
-      // Evento de Clique no Card
       card.addEventListener('click', () => {
         if (isUnlocked) {
           openCardModal(index);
@@ -305,9 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /**
-   * Abre o Modal de Carta Desbloqueada
-   */
   function openCardModal(index) {
     currentOpenDayIndex = index;
     const item = calendarData[index];
@@ -318,37 +408,26 @@ document.addEventListener('DOMContentLoaded', () => {
     modalSubtitle.textContent = item.subtitle + " • " + item.dateString;
     modalMessage.textContent = item.message;
 
-    // Garantir que a música da pasta /music CONTINUE TOCANDO SEM PARAR!
     if (globalAudio && globalAudio.paused) {
       globalAudio.play().then(() => {
         isGlobalAudioPlaying = true;
-        updateGlobalAudioIcon();
         if (audioStartBanner) audioStartBanner.classList.add('hidden');
       }).catch(() => {});
     }
 
-    // Atualizar navegação
     const currentDiff = getDiffDays();
     prevCardBtn.disabled = index === 0;
     nextCardBtn.disabled = index >= calendarData.length - 1 || calendarData[index + 1].offsetDays > currentDiff;
 
-    // Exibir Modal com Animação
     modalOverlay.classList.remove('hidden');
     modalOverlay.classList.add('flex');
   }
 
-  /**
-   * Fecha o Modal de Carta
-   */
   function closeCardModal() {
     modalOverlay.classList.add('hidden');
     modalOverlay.classList.remove('flex');
-    // A MÚSICA DE FUNDO NÃO PARA AO FECHAR O MODAL!
   }
 
-  /**
-   * Notificação quando clica em dia futuro bloqueado
-   */
   function showLockedToast(item) {
     toastMessageEl.innerHTML = `
       <strong>Esta memória ainda está trancada! 🔒</strong><br>
@@ -363,17 +442,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 4500);
   }
 
-  /**
-   * Configuração de Ouvintes de Eventos
-   */
   function setupEventListeners() {
-    // Fechar Modal
     if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeCardModal);
     modalOverlay.addEventListener('click', (e) => {
       if (e.target === modalOverlay) closeCardModal();
     });
 
-    // Navegação entre cartas no modal
     if (prevCardBtn) {
       prevCardBtn.addEventListener('click', () => {
         if (currentOpenDayIndex > 0) openCardModal(currentOpenDayIndex - 1);
@@ -388,127 +462,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
-
-    // Toggle de Música Global
-    if (globalAudioToggle) {
-      globalAudioToggle.addEventListener('click', () => {
-        if (globalAudio.paused) {
-          globalAudio.play().then(() => {
-            isGlobalAudioPlaying = true;
-            updateGlobalAudioIcon();
-            if (audioStartBanner) audioStartBanner.classList.add('hidden');
-          }).catch(err => console.log('Erro áudio:', err));
-        } else {
-          globalAudio.pause();
-          isGlobalAudioPlaying = false;
-          updateGlobalAudioIcon();
-        }
-      });
-    }
-
-    // Abrir Painel de Personalização (Admin)
-    if (openCustomizerBtn) {
-      openCustomizerBtn.addEventListener('click', () => {
-        populateCustomizerSelect();
-        customizerModal.classList.remove('hidden');
-        customizerModal.classList.add('flex');
-      });
-    }
-
-    if (closeCustomizerBtn) {
-      closeCustomizerBtn.addEventListener('click', () => {
-        customizerModal.classList.add('hidden');
-        customizerModal.classList.remove('flex');
-      });
-    }
-
-    if (customizerDaySelect) {
-      customizerDaySelect.addEventListener('change', () => {
-        const selIdx = parseInt(customizerDaySelect.value);
-        fillCustomizerForm(selIdx);
-      });
-    }
-
-    // Salvar Customização Form
-    if (customizerForm) {
-      customizerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const selIdx = parseInt(customizerDaySelect.value);
-        
-        let imageUrl = customizerImageInput.value.trim();
-
-        // Se houver upload de arquivo de imagem local
-        if (customizerImageFile && customizerImageFile.files.length > 0) {
-          const file = customizerImageFile.files[0];
-          imageUrl = await readFileAsDataURL(file);
-        }
-
-        calendarData[selIdx].title = customizerTitleInput.value.trim();
-        calendarData[selIdx].message = customizerTextInput.value.trim();
-        if (imageUrl) calendarData[selIdx].image = imageUrl;
-
-        saveCalendarData(calendarData);
-        alert('Cartão atualizado com sucesso! ❤️');
-        customizerModal.classList.add('hidden');
-        customizerModal.classList.remove('flex');
-      });
-    }
-
-    // Restaurar Padrão
-    if (resetDefaultBtn) {
-      resetDefaultBtn.addEventListener('click', () => {
-        if (confirm('Tem certeza que deseja restaurar todas as mensagens para o padrão original?')) {
-          localStorage.removeItem('LOVE_CALENDAR_CUSTOM_DATA');
-          calendarData = window.LOVE_CALENDAR_DATA;
-          renderCalendar();
-          alert('Mensagens restauradas!');
-          customizerModal.classList.add('hidden');
-          customizerModal.classList.remove('flex');
-        }
-      });
-    }
   }
 
-  function updateGlobalAudioIcon() {
-    if (globalAudioIcon) {
-      if (isGlobalAudioPlaying) {
-        globalAudioIcon.className = 'fas fa-music text-amber-200 animate-pulse';
-      } else {
-        globalAudioIcon.className = 'fas fa-volume-mute text-gray-400';
-      }
-    }
-  }
-
-  function populateCustomizerSelect() {
-    customizerDaySelect.innerHTML = '';
-    calendarData.forEach((item, index) => {
-      const opt = document.createElement('option');
-      opt.value = index;
-      opt.textContent = `Dia ${item.dayIndex} (${item.dateString}) - ${item.title}`;
-      customizerDaySelect.appendChild(opt);
-    });
-    fillCustomizerForm(0);
-  }
-
-  function fillCustomizerForm(index) {
-    const item = calendarData[index];
-    customizerTitleInput.value = item.title;
-    customizerTextInput.value = item.message;
-    customizerImageInput.value = item.image;
-  }
-
-  function readFileAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  /**
-   * Efeito de Pétalas Caindo (Canvas API)
-   */
   function initCanvasPetals() {
     const canvas = document.getElementById('petals-canvas');
     if (!canvas) return;
