@@ -40,7 +40,7 @@ window.LOVE_CALENDAR_DATA = [
     dateString: "10 de Setembro",
     title: "O Primeiro Passo do Nosso Recomeço",
     subtitle: "Onde tudo começa de novo...",
-    image: LOCAL_IMAGES[0],
+    image: "img/WhatsApp Image 2026-09-10 at 12.12.29.jpeg",
     audioUrl: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-piano-112199.mp3",
     songTitle: "Romantic Piano - Melodia do Nosso Amor",
     message: `Fábia, minha vida...
