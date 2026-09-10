@@ -43,16 +43,20 @@ window.LOVE_CALENDAR_DATA = [
     image: "img/WhatsApp Image 2026-09-10 at 12.12.29.jpeg",
     audioUrl: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-piano-112199.mp3",
     songTitle: "Romantic Piano - Melodia do Nosso Amor",
-    message: `Fábia, minha vida...
+    message: `Fábia, minha vida, minha noiva, meu amor eterno...
 
-Hoje é o dia em que decidi dar o primeiro passo para resgatar o que temos de mais precioso neste mundo: o nosso amor. Quando ficamos longe, percebi que não existe lugar no mundo onde eu me sinta completo sem você ao meu lado.
+Hoje é o dia em que decidi dar o primeiro e mais importante passo da minha vida: abrir o meu coração de par em par para resgatar o bem mais precioso que Deus já me deu — você e o nosso amor.
 
-Quero que este calendário seja uma ponte entre os nossos corações. Cada dia que passar trará uma lembrança, uma promessa e a certeza de que meu amor por você não diminuiu um segundo sequer — pelo contrário, só cresceu e se fortaleteu.
+Desde o dia em que nos afastamos, não houve uma única noite em que eu não tenha olhado para o céu e lembrado do brilho do seu olhar. Não houve uma manhã em que eu não tenha sentido o vazio gigante da sua ausência do meu lado. Percebi, da forma mais dolorosa e madura possível, que não existe lugar no mundo onde eu me sinta em paz, completo ou verdadeiramente feliz se você não estiver segurando a minha mão.
 
-Você é a mulher da minha vida, minha noiva, minha eterna companheira. Obrigado por existir e por ter feito minha vida tão abençoada. Este é apenas o começo da nossa reconstrução.
+Quero que este calendário seja muito mais do que apenas um site ou uma sequência de dias. Quero que ele seja o portal do nosso recomeço. Cada dia que passar daqui para a frente trará uma memória inesquecível da nossa história, uma promessa de mudança real e a minha certeza inabalável de que o meu amor por você não diminuiu um segundo sequer — pelo contrário, a distância me fez enxergar o quanto você é insubstituível na minha vida.
 
-Com todo o meu amor e saudade,
-Carlos. ❤️`
+Se eu cometi falhas no passado, hoje estou aqui diante de você como um homem novo, mais maduro, consciente e pronto para te proteger, te escutar, te valorizar e te fazer a mulher mais amada, respeitada e feliz deste universo. Nós construímos algo lindo demais, um laço de noivado e de cumplicidade que nenhuma tempestade pode apagar.
+
+Esta foto nossa marca quem nós somos quando estamos juntos: a perfeita tradução da felicidade. Obrigado por existir, por cada sorriso que já me deu e por ter transformado a minha vida. Este é apenas o primeiro capítulo da nossa reconstrução. Eu não vou desistir de nós dois jamais.
+
+Com todo o meu amor, a minha alma e a minha eterna saudade,
+Seu para sempre, Carlos. ❤️💍`
   },
   {
     dayIndex: 2,
